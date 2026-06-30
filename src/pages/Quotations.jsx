@@ -23,6 +23,8 @@ export default function Quotations() {
   const [filter, setFilter] = useState('all')
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
+  const [followupHistory, setFollowupHistory] = useState([])
 
   useEffect(() => {
     if (profile) load()
@@ -84,7 +86,27 @@ export default function Quotations() {
       notes,
     })
     await supabase.from('quotations').update({ last_followed_up_at: today }).eq('id', q.id)
+    if (expandedId === q.id) loadFollowupHistory(q.id)
     load()
+  }
+
+  async function loadFollowupHistory(quotationId) {
+    const { data } = await supabase
+      .from('quotation_followups')
+      .select('*')
+      .eq('quotation_id', quotationId)
+      .order('followup_date', { ascending: false })
+    setFollowupHistory(data ?? [])
+  }
+
+  async function toggleHistory(q) {
+    if (expandedId === q.id) {
+      setExpandedId(null)
+      setFollowupHistory([])
+      return
+    }
+    setExpandedId(q.id)
+    await loadFollowupHistory(q.id)
   }
 
   function startEdit(q) {
@@ -129,6 +151,7 @@ export default function Quotations() {
   }
 
   const filtered = quotations.filter((q) => filter === 'all' || q.status === filter)
+  const todayStr = new Date().toISOString().slice(0, 10)
 
   return (
     <div>
@@ -299,55 +322,93 @@ export default function Quotations() {
                     </td>
                   </tr>
                 ) : (
-                  <tr
-                    key={q.id}
-                    className={
-                      q.status === 'pending' && daysSince(q.date_sent) >= 3 ? 'row-alert' : ''
-                    }
-                  >
-                    <td>
-                      {q.customer_name}
-                      {q.customer_contact && <div className="muted">{q.customer_contact}</div>}
-                    </td>
-                    {isAdmin && <td>{q.profiles?.full_name}</td>}
-                    <td>{q.item_description}</td>
-                    <td>{formatSAR(q.amount)}</td>
-                    <td>{formatDate(q.date_sent)}</td>
-                    <td>
-                      <span className={`badge badge-${q.status}`}>{q.status}</span>
-                    </td>
-                    <td>{q.status === 'pending' ? `${daysSince(q.date_sent)}d` : '—'}</td>
-                    <td>{q.rejection_reason || '—'}</td>
-                    <td className="actions-cell">
-                      {q.status === 'pending' && (
-                        <>
-                          <button className="btn-small" onClick={() => logFollowUp(q)}>
-                            Log Follow-up
-                          </button>
-                          <button
-                            className="btn-small btn-success"
-                            onClick={() => updateStatus(q, 'accepted')}
-                          >
-                            Accepted
-                          </button>
-                          <button
-                            className="btn-small btn-danger"
-                            onClick={() => updateStatus(q, 'rejected')}
-                          >
-                            Rejected
-                          </button>
-                        </>
-                      )}
-                      <button className="btn-small" onClick={() => startEdit(q)}>
-                        Edit
-                      </button>
-                      {isAdmin && (
-                        <button className="btn-small btn-danger" onClick={() => handleDelete(q.id)}>
-                          Delete
+                  <>
+                    <tr
+                      key={q.id}
+                      className={
+                        q.status === 'pending' && q.next_follow_up_date === todayStr
+                          ? 'row-due-today'
+                          : q.status === 'pending' && daysSince(q.date_sent) >= 3
+                          ? 'row-alert'
+                          : ''
+                      }
+                    >
+                      <td>
+                        {q.customer_name}
+                        {q.customer_contact && <div className="muted">{q.customer_contact}</div>}
+                      </td>
+                      {isAdmin && <td>{q.profiles?.full_name}</td>}
+                      <td>{q.item_description}</td>
+                      <td>{formatSAR(q.amount)}</td>
+                      <td>{formatDate(q.date_sent)}</td>
+                      <td>
+                        <span className={`badge badge-${q.status}`}>{q.status}</span>
+                      </td>
+                      <td>{q.status === 'pending' ? `${daysSince(q.date_sent)}d` : '—'}</td>
+                      <td>{q.rejection_reason || '—'}</td>
+                      <td className="actions-cell">
+                        {q.status === 'pending' && (
+                          <>
+                            <button className="btn-small" onClick={() => logFollowUp(q)}>
+                              Log Follow-up
+                            </button>
+                            <button
+                              className="btn-small btn-success"
+                              onClick={() => updateStatus(q, 'accepted')}
+                            >
+                              Accepted
+                            </button>
+                            <button
+                              className="btn-small btn-danger"
+                              onClick={() => updateStatus(q, 'rejected')}
+                            >
+                              Rejected
+                            </button>
+                          </>
+                        )}
+                        <button className="btn-small" onClick={() => toggleHistory(q)}>
+                          {expandedId === q.id ? 'Hide History' : 'History'}
                         </button>
-                      )}
-                    </td>
-                  </tr>
+                        <button className="btn-small" onClick={() => startEdit(q)}>
+                          Edit
+                        </button>
+                        {isAdmin && (
+                          <button className="btn-small btn-danger" onClick={() => handleDelete(q.id)}>
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {expandedId === q.id && (
+                      <tr key={`${q.id}-history`}>
+                        <td colSpan={isAdmin ? 9 : 8}>
+                          <div className="panel" style={{ margin: 0 }}>
+                            <h2>Follow-up History — {q.customer_name}</h2>
+                            {followupHistory.length === 0 ? (
+                              <p className="empty-note">No follow-ups logged yet.</p>
+                            ) : (
+                              <table className="data-table">
+                                <thead>
+                                  <tr>
+                                    <th>Date</th>
+                                    <th>Notes</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {followupHistory.map((f) => (
+                                    <tr key={f.id}>
+                                      <td>{formatDate(f.followup_date)}</td>
+                                      <td>{f.notes || '—'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 )
               )}
             </tbody>

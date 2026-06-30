@@ -92,6 +92,14 @@ create policy "supplier_purchases_delete" on supplier_purchases for delete
   using (is_admin());
 ```
 
+If your project predates employees being able to add suppliers, also run:
+
+```sql
+drop policy if exists "suppliers_insert" on suppliers;
+create policy "suppliers_insert" on suppliers for insert
+  with check (auth.uid() is not null);
+```
+
 ## Features
 
 - **Daily Reports** — each employee logs a daily summary + quotation count;

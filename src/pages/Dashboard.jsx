@@ -29,6 +29,8 @@ export default function Dashboard() {
   const [quotations, setQuotations] = useState([])
   const [cashTransactions, setCashTransactions] = useState([])
   const [profiles, setProfiles] = useState([])
+  const [myFollowups, setMyFollowups] = useState([])
+  const [myReports, setMyReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [range, setRange] = useState({ from: '', to: '' })
 
@@ -51,6 +53,13 @@ export default function Dashboard() {
       ])
       setCashTransactions(cash ?? [])
       setProfiles(emp ?? [])
+    } else {
+      const [{ data: f }, { data: r }] = await Promise.all([
+        supabase.from('quotation_followups').select('*').eq('employee_id', profile.id),
+        supabase.from('daily_reports').select('*').eq('employee_id', profile.id),
+      ])
+      setMyFollowups(f ?? [])
+      setMyReports(r ?? [])
     }
 
     setLoading(false)
@@ -133,6 +142,32 @@ export default function Dashboard() {
     })
   }, [profiles, filteredQuotations, isAdmin])
 
+  const myPerformance = useMemo(() => {
+    if (isAdmin) return null
+    const decided = stats.accepted + stats.rejected
+    const conversionRate = decided > 0 ? (stats.accepted / decided) * 100 : null
+
+    const followupDelays = myFollowups
+      .map((f) => {
+        const q = quotations.find((qq) => qq.id === f.quotation_id)
+        if (!q) return null
+        const days = (new Date(f.followup_date) - new Date(q.date_sent)) / (1000 * 60 * 60 * 24)
+        return days >= 0 ? days : null
+      })
+      .filter((d) => d !== null)
+    const avgFollowupDays =
+      followupDelays.length > 0 ? followupDelays.reduce((s, d) => s + d, 0) / followupDelays.length : null
+
+    const last14 = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() - (13 - i))
+      const dateStr = d.toISOString().slice(0, 10)
+      return { dateStr, submitted: myReports.some((r) => r.report_date === dateStr) }
+    })
+
+    return { conversionRate, avgFollowupDays, overdueCount: overdue.length, last14 }
+  }, [isAdmin, stats, myFollowups, quotations, myReports, overdue])
+
   if (loading) return <div className="page-loading">Loading dashboard…</div>
 
   return (
@@ -190,6 +225,35 @@ export default function Dashboard() {
           )}
         </section>
       </div>
+
+      {myPerformance && (
+        <section className="panel">
+          <h2>My Performance</h2>
+          <div className="stat-grid">
+            <StatCard
+              label="Conversion Rate"
+              value={myPerformance.conversionRate === null ? '—' : `${myPerformance.conversionRate.toFixed(1)}%`}
+            />
+            <StatCard
+              label="Avg Follow-up Speed"
+              value={myPerformance.avgFollowupDays === null ? '—' : `${myPerformance.avgFollowupDays.toFixed(1)}d`}
+            />
+            <StatCard label="Overdue Follow-ups" value={myPerformance.overdueCount} />
+          </div>
+          <div className="muted" style={{ marginBottom: 6 }}>
+            Daily report streak — last 14 days
+          </div>
+          <div className="streak-strip">
+            {myPerformance.last14.map((d) => (
+              <span
+                key={d.dateStr}
+                className={`streak-dot ${d.submitted ? 'streak-dot-on' : ''}`}
+                title={d.dateStr}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {isAdmin && (
         <section className="panel">

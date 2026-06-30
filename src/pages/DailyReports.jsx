@@ -87,6 +87,15 @@ export default function DailyReports() {
     ? [...new Map(reports.map((r) => [r.employee_id, r.profiles?.full_name || 'Unknown'])).entries()]
     : []
 
+  const myStreak = !isAdmin
+    ? Array.from({ length: 14 }, (_, i) => {
+        const d = new Date()
+        d.setDate(d.getDate() - (13 - i))
+        const dateStr = d.toISOString().slice(0, 10)
+        return { dateStr, submitted: reports.some((r) => r.report_date === dateStr) }
+      })
+    : []
+
   const visibleReports = reports.filter(
     (r) => employeeFilter === 'all' || r.employee_id === employeeFilter
   )
@@ -122,6 +131,18 @@ export default function DailyReports() {
               {saving ? 'Saving…' : 'Submit / Update Today\'s Report'}
             </button>
           </form>
+          <div className="muted" style={{ margin: '14px 0 6px' }}>
+            Submission streak — last 14 days
+          </div>
+          <div className="streak-strip">
+            {myStreak.map((d) => (
+              <span
+                key={d.dateStr}
+                className={`streak-dot ${d.submitted ? 'streak-dot-on' : ''}`}
+                title={d.dateStr}
+              />
+            ))}
+          </div>
         </section>
       )}
 

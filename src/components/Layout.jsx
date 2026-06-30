@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import logo from '../assets/logo.png'
+import NotificationBell from './NotificationBell'
 
 export default function Layout() {
   const { profile, isAdmin, signOut } = useAuth()
@@ -12,6 +13,7 @@ export default function Layout() {
           <img src={logo} alt="Mechno Skill" className="brand-logo" />
           Mechno Skill
         </div>
+        {!isAdmin && <NotificationBell />}
         <nav>
           <NavLink to="/" end>Dashboard</NavLink>
           <NavLink to="/reports">Daily Reports</NavLink>

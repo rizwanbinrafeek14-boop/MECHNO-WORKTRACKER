@@ -167,11 +167,11 @@ create policy "followups_update" on quotation_followups for update
 create policy "followups_delete" on quotation_followups for delete
   using (employee_id = auth.uid() or is_admin());
 
--- suppliers: any logged-in user can view; only admins manage
+-- suppliers: any logged-in user can view and add; only admins edit/delete
 create policy "suppliers_select" on suppliers for select
   using (auth.uid() is not null);
 create policy "suppliers_insert" on suppliers for insert
-  with check (is_admin());
+  with check (auth.uid() is not null);
 create policy "suppliers_update" on suppliers for update
   using (is_admin());
 create policy "suppliers_delete" on suppliers for delete

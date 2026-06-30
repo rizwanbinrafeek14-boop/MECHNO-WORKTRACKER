@@ -137,48 +137,46 @@ export default function Suppliers() {
     <div>
       <h1 className="page-title">Suppliers</h1>
 
-      {isAdmin && (
-        <section className="panel">
-          <h2>Add Supplier</h2>
-          <form className="inline-form grid-form" onSubmit={handleCreate}>
-            {error && <div className="error-banner">{error}</div>}
-            <label>
-              Supplier Name
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            </label>
-            <label>
-              What They Sell
-              <input value={form.sells} onChange={(e) => setForm({ ...form, sells: e.target.value })} required />
-            </label>
-            <label>
-              Phone
-              <input
-                value={form.contact_phone}
-                onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
-              />
-            </label>
-            <label>
-              Email
-              <input
-                type="email"
-                value={form.contact_email}
-                onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
-              />
-            </label>
-            <label>
-              Location
-              <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-            </label>
-            <label>
-              Notes
-              <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-            </label>
-            <button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Add Supplier'}
-            </button>
-          </form>
-        </section>
-      )}
+      <section className="panel">
+        <h2>Add Supplier</h2>
+        <form className="inline-form grid-form" onSubmit={handleCreate}>
+          {error && <div className="error-banner">{error}</div>}
+          <label>
+            Supplier Name
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          </label>
+          <label>
+            What They Sell
+            <input value={form.sells} onChange={(e) => setForm({ ...form, sells: e.target.value })} required />
+          </label>
+          <label>
+            Phone
+            <input
+              value={form.contact_phone}
+              onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+            />
+          </label>
+          <label>
+            Email
+            <input
+              type="email"
+              value={form.contact_email}
+              onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
+            />
+          </label>
+          <label>
+            Location
+            <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+          </label>
+          <label>
+            Notes
+            <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </label>
+          <button type="submit" disabled={saving}>
+            {saving ? 'Saving…' : 'Add Supplier'}
+          </button>
+        </form>
+      </section>
 
       <section className="panel">
         <div className="panel-header-row">
