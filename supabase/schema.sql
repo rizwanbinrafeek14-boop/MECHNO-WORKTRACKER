@@ -105,12 +105,16 @@ for each row execute function set_updated_at();
 
 alter table purchase_orders enable row level security;
 
+drop policy if exists "purchase_orders_select" on purchase_orders;
 create policy "purchase_orders_select" on purchase_orders for select
   using (employee_id = auth.uid() or is_admin());
+drop policy if exists "purchase_orders_insert" on purchase_orders;
 create policy "purchase_orders_insert" on purchase_orders for insert
   with check (employee_id = auth.uid() or is_admin());
+drop policy if exists "purchase_orders_update" on purchase_orders;
 create policy "purchase_orders_update" on purchase_orders for update
   using (employee_id = auth.uid() or is_admin());
+drop policy if exists "purchase_orders_delete" on purchase_orders;
 create policy "purchase_orders_delete" on purchase_orders for delete
   using (employee_id = auth.uid() or is_admin());
 
