@@ -94,11 +94,16 @@ for each row execute function set_updated_at();
 
 -- ─── Helper: is current user an admin? ─────────────────────────
 create or replace function is_admin()
-returns boolean as $$
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
   select exists (
-    select 1 from profiles where id = auth.uid() and role = 'admin'
+    select 1 from public.profiles where id = auth.uid() and role = 'admin'
   );
-$$ language sql stable security definer;
+$$;
 
 -- ─── Row Level Security ─────────────────────────────────────────
 alter table profiles enable row level security;
@@ -167,14 +172,21 @@ create policy "cash_delete_admin" on cash_transactions for delete
   using (is_admin());
 
 -- ─── Auto-create profile on signup ─────────────────────────────
+-- search_path is pinned because this trigger fires from the auth schema's
+-- internal context, where an unqualified "profiles" reference fails to
+-- resolve and silently breaks signup ("Database error creating new user").
 create or replace function handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into profiles (id, full_name, role)
+  insert into public.profiles (id, full_name, role)
   values (new.id, coalesce(new.raw_user_meta_data->>'full_name', new.email), 'employee');
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
