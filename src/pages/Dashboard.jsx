@@ -1,16 +1,36 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+} from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatSAR, formatDate, daysSince } from '../lib/format'
+import { exportToCsv } from '../lib/csv'
+import DateRangeFilter from '../components/DateRangeFilter'
 
 const FOLLOWUP_THRESHOLD_DAYS = 3
+const STATUS_COLORS = { accepted: '#16a34a', pending: '#d97706', rejected: '#dc2626' }
 
 export default function Dashboard() {
   const { profile, isAdmin } = useAuth()
-  const [stats, setStats] = useState(null)
-  const [overdue, setOverdue] = useState([])
-  const [byEmployee, setByEmployee] = useState([])
+  const [quotations, setQuotations] = useState([])
+  const [cashTransactions, setCashTransactions] = useState([])
+  const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
+  const [range, setRange] = useState({ from: '', to: '' })
 
   useEffect(() => {
     if (profile) load()
@@ -19,55 +39,110 @@ export default function Dashboard() {
 
   async function load() {
     setLoading(true)
-    const today = new Date().toISOString().slice(0, 10)
-
     let quotationsQuery = supabase.from('quotations').select('*')
     if (!isAdmin) quotationsQuery = quotationsQuery.eq('employee_id', profile.id)
-    const { data: quotations } = await quotationsQuery
-
-    const pending = (quotations ?? []).filter((q) => q.status === 'pending')
-    const overdueList = pending
-      .filter((q) => daysSince(q.date_sent) >= FOLLOWUP_THRESHOLD_DAYS)
-      .sort((a, b) => daysSince(b.date_sent) - daysSince(a.date_sent))
-
-    const todaysCount = (quotations ?? []).filter((q) => q.date_sent === today).length
-    const accepted = (quotations ?? []).filter((q) => q.status === 'accepted').length
-    const rejected = (quotations ?? []).filter((q) => q.status === 'rejected').length
-    const totalValue = (quotations ?? []).reduce((sum, q) => sum + Number(q.amount || 0), 0)
-
-    setStats({
-      total: quotations?.length ?? 0,
-      pending: pending.length,
-      accepted,
-      rejected,
-      todaysCount,
-      totalValue,
-    })
-    setOverdue(overdueList.slice(0, 10))
+    const { data: q } = await quotationsQuery
+    setQuotations(q ?? [])
 
     if (isAdmin) {
-      const { data: profiles } = await supabase.from('profiles').select('id, full_name').eq('role', 'employee')
-      const rows = (profiles ?? []).map((p) => {
-        const mine = (quotations ?? []).filter((q) => q.employee_id === p.id)
-        return {
-          id: p.id,
-          name: p.full_name,
-          total: mine.length,
-          accepted: mine.filter((q) => q.status === 'accepted').length,
-          pending: mine.filter((q) => q.status === 'pending').length,
-        }
-      })
-      setByEmployee(rows)
+      const [{ data: cash }, { data: emp }] = await Promise.all([
+        supabase.from('cash_transactions').select('*'),
+        supabase.from('profiles').select('id, full_name').eq('role', 'employee'),
+      ])
+      setCashTransactions(cash ?? [])
+      setProfiles(emp ?? [])
     }
 
     setLoading(false)
   }
 
-  if (loading || !stats) return <div className="page-loading">Loading dashboard…</div>
+  const filteredQuotations = useMemo(() => {
+    return quotations.filter((q) => {
+      if (range.from && q.date_sent < range.from) return false
+      if (range.to && q.date_sent > range.to) return false
+      return true
+    })
+  }, [quotations, range])
+
+  const filteredCash = useMemo(() => {
+    return cashTransactions.filter((t) => {
+      if (range.from && t.entry_date < range.from) return false
+      if (range.to && t.entry_date > range.to) return false
+      return true
+    })
+  }, [cashTransactions, range])
+
+  const stats = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const pending = filteredQuotations.filter((q) => q.status === 'pending')
+    const accepted = filteredQuotations.filter((q) => q.status === 'accepted').length
+    const rejected = filteredQuotations.filter((q) => q.status === 'rejected').length
+    const totalValue = filteredQuotations.reduce((sum, q) => sum + Number(q.amount || 0), 0)
+    const todaysCount = filteredQuotations.filter((q) => q.date_sent === today).length
+    return { total: filteredQuotations.length, pending: pending.length, accepted, rejected, totalValue, todaysCount }
+  }, [filteredQuotations])
+
+  const overdue = useMemo(() => {
+    return filteredQuotations
+      .filter((q) => q.status === 'pending' && daysSince(q.date_sent) >= FOLLOWUP_THRESHOLD_DAYS)
+      .sort((a, b) => daysSince(b.date_sent) - daysSince(a.date_sent))
+      .slice(0, 10)
+  }, [filteredQuotations])
+
+  const quotationsTrend = useMemo(() => {
+    const byDate = {}
+    filteredQuotations.forEach((q) => {
+      byDate[q.date_sent] = (byDate[q.date_sent] || 0) + 1
+    })
+    return Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, count]) => ({ date, count }))
+  }, [filteredQuotations])
+
+  const statusBreakdown = useMemo(
+    () => [
+      { name: 'Accepted', value: stats.accepted, key: 'accepted' },
+      { name: 'Pending', value: stats.pending, key: 'pending' },
+      { name: 'Rejected', value: stats.rejected, key: 'rejected' },
+    ],
+    [stats]
+  )
+
+  const cashTrend = useMemo(() => {
+    const byDate = {}
+    filteredCash.forEach((t) => {
+      if (!byDate[t.entry_date]) byDate[t.entry_date] = { date: t.entry_date, inflow: 0, outflow: 0 }
+      if (t.type === 'inflow') byDate[t.entry_date].inflow += Number(t.amount || 0)
+      if (t.type === 'outflow' || t.type === 'expense') byDate[t.entry_date].outflow += Number(t.amount || 0)
+    })
+    return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date))
+  }, [filteredCash])
+
+  const byEmployee = useMemo(() => {
+    if (!isAdmin) return []
+    return profiles.map((p) => {
+      const mine = filteredQuotations.filter((q) => q.employee_id === p.id)
+      return {
+        id: p.id,
+        name: p.full_name,
+        total: mine.length,
+        accepted: mine.filter((q) => q.status === 'accepted').length,
+        pending: mine.filter((q) => q.status === 'pending').length,
+        value: mine.reduce((s, q) => s + Number(q.amount || 0), 0),
+      }
+    })
+  }, [profiles, filteredQuotations, isAdmin])
+
+  if (loading) return <div className="page-loading">Loading dashboard…</div>
 
   return (
     <div>
-      <h1 className="page-title">Dashboard</h1>
+      <div className="panel-header-row">
+        <h1 className="page-title" style={{ marginBottom: 0 }}>
+          Dashboard
+        </h1>
+        <DateRangeFilter range={range} onChange={setRange} />
+      </div>
 
       <div className="stat-grid">
         <StatCard label="Quotations Today" value={stats.todaysCount} />
@@ -77,6 +152,65 @@ export default function Dashboard() {
         <StatCard label="Rejected" value={stats.rejected} />
         <StatCard label="Total Quoted Value" value={formatSAR(stats.totalValue)} />
       </div>
+
+      <div className="chart-grid">
+        <section className="panel">
+          <h2>Quotations Sent Over Time</h2>
+          {quotationsTrend.length === 0 ? (
+            <p className="empty-note">No data for this range.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={quotationsTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" fontSize={11} />
+                <YAxis allowDecimals={false} fontSize={11} />
+                <Tooltip />
+                <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2>Status Breakdown</h2>
+          {stats.total === 0 ? (
+            <p className="empty-note">No data for this range.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={statusBreakdown} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90}>
+                  {statusBreakdown.map((entry) => (
+                    <Cell key={entry.key} fill={STATUS_COLORS[entry.key]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+      </div>
+
+      {isAdmin && (
+        <section className="panel">
+          <h2>Cash Flow Over Time</h2>
+          {cashTrend.length === 0 ? (
+            <p className="empty-note">No data for this range.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={cashTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" fontSize={11} />
+                <YAxis fontSize={11} />
+                <Tooltip formatter={(v) => formatSAR(v)} />
+                <Legend />
+                <Line type="monotone" dataKey="inflow" stroke="#16a34a" name="Inflow" />
+                <Line type="monotone" dataKey="outflow" stroke="#dc2626" name="Outflow + Expense" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+      )}
 
       <section className="panel">
         <h2>Follow-ups Needed ({FOLLOWUP_THRESHOLD_DAYS}+ days, no reply)</h2>
@@ -108,7 +242,23 @@ export default function Dashboard() {
 
       {isAdmin && (
         <section className="panel">
-          <h2>Employee Progress</h2>
+          <div className="panel-header-row">
+            <h2>Employee Progress</h2>
+            <button
+              className="btn-small"
+              onClick={() =>
+                exportToCsv('employee-progress.csv', byEmployee, [
+                  { label: 'Employee', value: (e) => e.name },
+                  { label: 'Total Quotes', value: (e) => e.total },
+                  { label: 'Accepted', value: (e) => e.accepted },
+                  { label: 'Pending', value: (e) => e.pending },
+                  { label: 'Total Value', value: (e) => e.value },
+                ])
+              }
+            >
+              Export CSV
+            </button>
+          </div>
           <table className="data-table">
             <thead>
               <tr>
@@ -116,15 +266,19 @@ export default function Dashboard() {
                 <th>Total Quotes</th>
                 <th>Accepted</th>
                 <th>Pending</th>
+                <th>Total Value</th>
               </tr>
             </thead>
             <tbody>
               {byEmployee.map((e) => (
                 <tr key={e.id}>
-                  <td>{e.name}</td>
+                  <td>
+                    <Link to={`/employees/${e.id}`}>{e.name}</Link>
+                  </td>
                   <td>{e.total}</td>
                   <td>{e.accepted}</td>
                   <td>{e.pending}</td>
+                  <td>{formatSAR(e.value)}</td>
                 </tr>
               ))}
             </tbody>

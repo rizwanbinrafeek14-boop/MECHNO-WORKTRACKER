@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatDate } from '../lib/format'
+import { exportToCsv } from '../lib/csv'
 
 export default function DailyReports() {
   const { profile, isAdmin } = useAuth()
@@ -86,7 +87,22 @@ export default function DailyReports() {
       )}
 
       <section className="panel">
-        <h2>History</h2>
+        <div className="panel-header-row">
+          <h2>History</h2>
+          <button
+            className="btn-small"
+            onClick={() =>
+              exportToCsv('daily-reports.csv', reports, [
+                { label: 'Date', value: (r) => r.report_date },
+                { label: 'Employee', value: (r) => r.profiles?.full_name || '' },
+                { label: 'Quotations Made', value: (r) => r.quotations_made },
+                { label: 'Summary', value: (r) => r.summary },
+              ])
+            }
+          >
+            Export CSV
+          </button>
+        </div>
         {loading ? (
           <p className="empty-note">Loading…</p>
         ) : reports.length === 0 ? (

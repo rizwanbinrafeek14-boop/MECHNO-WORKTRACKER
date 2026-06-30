@@ -205,6 +205,42 @@ button, input, select, textarea { font-family: inherit; font-size: 14px; }
 
 .empty-note { color: var(--text-2); font-size: 14px; }
 
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 22px;
+  margin-bottom: 22px;
+}
+.chart-grid .panel { margin-bottom: 0; }
+
+.date-range-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.date-range-filter input[type="date"] {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: var(--blue);
+  text-decoration: none;
+  font-size: 13px;
+}
+
 /* ─── Forms ────────────────────────────────────────────────── */
 .inline-form {
   display: flex;

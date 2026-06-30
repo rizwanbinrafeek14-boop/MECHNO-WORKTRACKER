@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatSAR, formatDate } from '../lib/format'
+import { exportToCsv } from '../lib/csv'
 
 const TYPES = [
   { value: 'inflow', label: 'Inflow (money in)' },
@@ -164,14 +165,32 @@ export default function CashFlow() {
       <section className="panel">
         <div className="panel-header-row">
           <h2>Transactions</h2>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="all">All</option>
-            {TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <div className="row-actions">
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="all">All</option>
+              {TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="btn-small"
+              onClick={() =>
+                exportToCsv('cash-transactions.csv', filtered, [
+                  { label: 'Date', value: (t) => t.entry_date },
+                  { label: 'Type', value: (t) => t.type },
+                  { label: 'Category', value: (t) => t.category || '' },
+                  { label: 'Party', value: (t) => t.party_name || '' },
+                  { label: 'Amount', value: (t) => t.amount },
+                  { label: 'Description', value: (t) => t.description || '' },
+                  { label: 'Settled', value: (t) => (t.settled ? 'Yes' : 'No') },
+                ])
+              }
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
         {loading ? (
           <p className="empty-note">Loading…</p>

@@ -9,6 +9,7 @@ import Quotations from './pages/Quotations'
 import Suppliers from './pages/Suppliers'
 import CashFlow from './pages/CashFlow'
 import Employees from './pages/Employees'
+import EmployeeDetail from './pages/EmployeeDetail'
 
 export default function App() {
   return (
@@ -40,6 +41,14 @@ export default function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <Employees />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/employees/:id"
+              element={
+                <ProtectedRoute adminOnly>
+                  <EmployeeDetail />
                 </ProtectedRoute>
               }
             />

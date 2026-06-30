@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatSAR, formatDate, daysSince } from '../lib/format'
+import { exportToCsv } from '../lib/csv'
 
 const emptyForm = {
   customer_name: '',
@@ -154,12 +155,31 @@ export default function Quotations() {
       <section className="panel">
         <div className="panel-header-row">
           <h2>All Quotations</h2>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          <div className="row-actions">
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <button
+              className="btn-small"
+              onClick={() =>
+                exportToCsv('quotations.csv', filtered, [
+                  { label: 'Customer', value: (q) => q.customer_name },
+                  { label: 'Contact', value: (q) => q.customer_contact || '' },
+                  { label: 'Employee', value: (q) => q.profiles?.full_name || '' },
+                  { label: 'Item', value: (q) => q.item_description },
+                  { label: 'Amount', value: (q) => q.amount },
+                  { label: 'Date Sent', value: (q) => q.date_sent },
+                  { label: 'Status', value: (q) => q.status },
+                  { label: 'Rejection Reason', value: (q) => q.rejection_reason || '' },
+                ])
+              }
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
         {loading ? (
           <p className="empty-note">Loading…</p>

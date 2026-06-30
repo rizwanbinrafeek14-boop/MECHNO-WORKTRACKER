@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function Employees() {
@@ -52,7 +53,9 @@ export default function Employees() {
             <tbody>
               {profiles.map((p) => (
                 <tr key={p.id}>
-                  <td>{p.full_name}</td>
+                  <td>
+                    <Link to={`/employees/${p.id}`}>{p.full_name}</Link>
+                  </td>
                   <td>
                     <span className={`badge badge-${p.role}`}>{p.role}</span>
                   </td>
