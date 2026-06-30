@@ -551,6 +551,54 @@ input, select, textarea { background: var(--card); color: var(--text); }
   font-weight: 700;
 }
 
+.categories-field {
+  grid-column: 1 / -1;
+}
+
+.category-checkbox-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+
+.category-checkbox-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.category-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.category-checkbox input {
+  width: auto;
+}
+
+.category-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.category-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid;
+}
+
 @media (max-width: 880px) {
   .suppliers-layout {
     flex-direction: column;

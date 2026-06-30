@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatSAR, formatDate } from '../lib/format'
 
-const emptyForm = { name: '', sells: '', contact_phone: '', contact_email: '', location: '', notes: '' }
+const emptyForm = { name: '', sells: '', categories: [], contact_phone: '', contact_email: '', location: '', notes: '' }
 const emptyPurchase = { purchase_date: new Date().toISOString().slice(0, 10), item_description: '', amount: '', notes: '' }
 
 const CATEGORY_GROUPS = [
@@ -49,6 +49,7 @@ export default function Suppliers() {
   const [expandedId, setExpandedId] = useState(null)
   const [purchases, setPurchases] = useState([])
   const [purchaseForm, setPurchaseForm] = useState(emptyPurchase)
+  const [categoryFilter, setCategoryFilter] = useState(null)
 
   useEffect(() => {
     load()
@@ -118,6 +119,24 @@ export default function Suppliers() {
     load()
   }
 
+  function toggleFormCategory(name) {
+    setForm((f) => ({
+      ...f,
+      categories: f.categories.includes(name)
+        ? f.categories.filter((c) => c !== name)
+        : [...f.categories, name],
+    }))
+  }
+
+  function toggleEditCategory(name) {
+    setEditForm((f) => ({
+      ...f,
+      categories: (f.categories || []).includes(name)
+        ? f.categories.filter((c) => c !== name)
+        : [...(f.categories || []), name],
+    }))
+  }
+
   async function handleDelete(id) {
     if (!window.confirm('Delete this supplier?')) return
     await supabase.from('suppliers').delete().eq('id', id)
@@ -126,7 +145,7 @@ export default function Suppliers() {
 
   function startEdit(s) {
     setEditingId(s.id)
-    setEditForm({ ...s })
+    setEditForm({ ...s, categories: s.categories || [] })
   }
 
   function cancelEdit() {
@@ -140,6 +159,7 @@ export default function Suppliers() {
       .update({
         name: editForm.name,
         sells: editForm.sells,
+        categories: editForm.categories || [],
         contact_phone: editForm.contact_phone || null,
         contact_email: editForm.contact_email || null,
         location: editForm.location || null,
@@ -156,25 +176,26 @@ export default function Suppliers() {
 
   const filtered = suppliers.filter((s) => {
     const q = search.toLowerCase()
-    return (
+    const matchesSearch =
       s.name.toLowerCase().includes(q) ||
       s.sells.toLowerCase().includes(q) ||
       (s.location || '').toLowerCase().includes(q)
-    )
+    const matchesCategory = !categoryFilter || (s.categories || []).includes(categoryFilter)
+    return matchesSearch && matchesCategory
   })
 
   const categoryCounts = useMemo(() => {
     const counts = {}
     CATEGORY_GROUPS.forEach((g) =>
       g.items.forEach((c) => {
-        counts[c.name] = suppliers.filter((s) => s.sells.toLowerCase().includes(c.name.toLowerCase())).length
+        counts[c.name] = suppliers.filter((s) => (s.categories || []).includes(c.name)).length
       })
     )
     return counts
   }, [suppliers])
 
   function selectCategory(name) {
-    setSearch((prev) => (prev === name ? '' : name))
+    setCategoryFilter((prev) => (prev === name ? null : name))
   }
 
   return (
@@ -192,6 +213,29 @@ export default function Suppliers() {
           <label>
             What They Sell
             <input value={form.sells} onChange={(e) => setForm({ ...form, sells: e.target.value })} required />
+          </label>
+          <label className="categories-field">
+            Categories
+            <div className="category-checkbox-groups">
+              {CATEGORY_GROUPS.map((group, gi) => (
+                <div key={gi} className="category-checkbox-group">
+                  {group.label && <div className="category-group-label">{group.label}</div>}
+                  <div className="category-checkbox-list">
+                    {group.items.map((c) => (
+                      <label key={c.name} className="category-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={form.categories.includes(c.name)}
+                          onChange={() => toggleFormCategory(c.name)}
+                        />
+                        <span className="category-dot" style={{ background: c.color }} />
+                        {c.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </label>
           <label>
             Phone
@@ -233,7 +277,7 @@ export default function Suppliers() {
                   {group.items.map((c) => (
                     <li
                       key={c.name}
-                      className={`category-item ${search === c.name ? 'category-item-active' : ''}`}
+                      className={`category-item ${categoryFilter === c.name ? 'category-item-active' : ''}`}
                       onClick={() => selectCategory(c.name)}
                     >
                       <span className="category-dot" style={{ background: c.color }} />
@@ -271,6 +315,7 @@ export default function Suppliers() {
               <tr>
                 <th>Name</th>
                 <th>Sells</th>
+                <th>Categories</th>
                 <th>Contact</th>
                 <th>Location</th>
                 <th>Notes</th>
@@ -292,6 +337,28 @@ export default function Suppliers() {
                         value={editForm.sells}
                         onChange={(e) => setEditForm({ ...editForm, sells: e.target.value })}
                       />
+                    </td>
+                    <td>
+                      <div className="category-checkbox-groups">
+                        {CATEGORY_GROUPS.map((group, gi) => (
+                          <div key={gi} className="category-checkbox-group">
+                            {group.label && <div className="category-group-label">{group.label}</div>}
+                            <div className="category-checkbox-list">
+                              {group.items.map((c) => (
+                                <label key={c.name} className="category-checkbox">
+                                  <input
+                                    type="checkbox"
+                                    checked={(editForm.categories || []).includes(c.name)}
+                                    onChange={() => toggleEditCategory(c.name)}
+                                  />
+                                  <span className="category-dot" style={{ background: c.color }} />
+                                  {c.name}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </td>
                     <td>
                       <input
@@ -332,6 +399,22 @@ export default function Suppliers() {
                       <td>{s.name}</td>
                       <td>{s.sells}</td>
                       <td>
+                        {(s.categories || []).length === 0 ? (
+                          '—'
+                        ) : (
+                          <div className="category-badges">
+                            {s.categories.map((catName) => {
+                              const cat = CATEGORY_GROUPS.flatMap((g) => g.items).find((i) => i.name === catName)
+                              return (
+                                <span key={catName} className="category-badge" style={{ borderColor: cat?.color, color: cat?.color }}>
+                                  {catName}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </td>
+                      <td>
                         {s.contact_phone && <div>{s.contact_phone}</div>}
                         {s.contact_email && <div className="muted">{s.contact_email}</div>}
                       </td>
@@ -355,7 +438,7 @@ export default function Suppliers() {
                     </tr>
                     {expandedId === s.id && (
                       <tr key={`${s.id}-expanded`}>
-                        <td colSpan={6}>
+                        <td colSpan={7}>
                           <div className="panel" style={{ margin: 0 }}>
                             <h2>Purchase History — {s.name}</h2>
                             {isAdmin && (

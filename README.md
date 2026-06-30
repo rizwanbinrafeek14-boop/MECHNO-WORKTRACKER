@@ -197,6 +197,12 @@ insert into agents (name) values ('Shiraz'), ('Imran'), ('Irshad')
 on conflict (name) do nothing;
 ```
 
+If your project predates selectable supplier categories, also run:
+
+```sql
+alter table suppliers add column if not exists categories text[] not null default '{}';
+```
+
 ## Features
 
 - **Daily Reports** — each employee logs a daily summary + quotation count;

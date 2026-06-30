@@ -33,6 +33,7 @@ create table if not exists suppliers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   sells text not null,
+  categories text[] not null default '{}',
   contact_phone text,
   contact_email text,
   location text,
@@ -40,6 +41,8 @@ create table if not exists suppliers (
   created_by uuid references profiles(id),
   created_at timestamptz not null default now()
 );
+
+alter table suppliers add column if not exists categories text[] not null default '{}';
 
 -- ─── Supplier purchase history ─────────────────────────────────
 create table if not exists supplier_purchases (
