@@ -27,6 +27,7 @@ const STATUS_COLORS = { accepted: '#16a34a', pending: '#d97706', rejected: '#dc2
 export default function Dashboard() {
   const { profile, isAdmin } = useAuth()
   const [quotations, setQuotations] = useState([])
+  const [purchaseOrders, setPurchaseOrders] = useState([])
   const [cashTransactions, setCashTransactions] = useState([])
   const [profiles, setProfiles] = useState([])
   const [myFollowups, setMyFollowups] = useState([])
@@ -43,8 +44,11 @@ export default function Dashboard() {
     setLoading(true)
     let quotationsQuery = supabase.from('quotations').select('*')
     if (!isAdmin) quotationsQuery = quotationsQuery.eq('employee_id', profile.id)
-    const { data: q } = await quotationsQuery
+    let poQuery = supabase.from('purchase_orders').select('*')
+    if (!isAdmin) poQuery = poQuery.eq('employee_id', profile.id)
+    const [{ data: q }, { data: po }] = await Promise.all([quotationsQuery, poQuery])
     setQuotations(q ?? [])
+    setPurchaseOrders(po ?? [])
 
     if (isAdmin) {
       const [{ data: cash }, { data: emp }] = await Promise.all([
@@ -81,6 +85,14 @@ export default function Dashboard() {
     })
   }, [cashTransactions, range])
 
+  const filteredPOs = useMemo(() => {
+    return purchaseOrders.filter((po) => {
+      if (range.from && po.date_received < range.from) return false
+      if (range.to && po.date_received > range.to) return false
+      return true
+    })
+  }, [purchaseOrders, range])
+
   const stats = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
     const pending = filteredQuotations.filter((q) => q.status === 'pending')
@@ -116,6 +128,45 @@ export default function Dashboard() {
     ],
     [stats]
   )
+
+  const revenueTrend = useMemo(() => {
+    const byDate = {}
+    filteredQuotations
+      .filter((q) => q.status === 'accepted')
+      .forEach((q) => {
+        byDate[q.date_sent] = (byDate[q.date_sent] || 0) + Number(q.amount || 0)
+      })
+    return Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, value]) => ({ date, value }))
+  }, [filteredQuotations])
+
+  const poStatusBreakdown = useMemo(() => {
+    const labels = { received: 'Received', in_progress: 'In Progress', completed: 'Completed' }
+    const byStatus = { received: 0, in_progress: 0, completed: 0 }
+    filteredPOs.forEach((po) => {
+      byStatus[po.status] = (byStatus[po.status] || 0) + 1
+    })
+    return Object.entries(byStatus).map(([key, count]) => ({ key, name: labels[key], count }))
+  }, [filteredPOs])
+
+  const PO_STATUS_COLORS = { received: '#d97706', in_progress: '#2563eb', completed: '#16a34a' }
+
+  const expenseByCategory = useMemo(() => {
+    if (!isAdmin) return []
+    const byCat = {}
+    filteredCash
+      .filter((t) => t.type === 'expense')
+      .forEach((t) => {
+        const cat = t.category || 'Uncategorized'
+        byCat[cat] = (byCat[cat] || 0) + Number(t.amount || 0)
+      })
+    return Object.entries(byCat)
+      .sort(([, a], [, b]) => b - a)
+      .map(([name, value]) => ({ name, value }))
+  }, [filteredCash, isAdmin])
+
+  const EXPENSE_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#475569']
 
   const cashTrend = useMemo(() => {
     const byDate = {}
@@ -226,6 +277,46 @@ export default function Dashboard() {
         </section>
       </div>
 
+      <div className="chart-grid">
+        <section className="panel">
+          <h2>Revenue Trend (Accepted Quotations)</h2>
+          {revenueTrend.length === 0 ? (
+            <p className="empty-note">No data for this range.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={revenueTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" fontSize={11} />
+                <YAxis fontSize={11} />
+                <Tooltip formatter={(v) => formatSAR(v)} />
+                <Line type="monotone" dataKey="value" stroke="#16a34a" name="Revenue" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2>Purchase Orders by Status</h2>
+          {filteredPOs.length === 0 ? (
+            <p className="empty-note">No data for this range.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={poStatusBreakdown}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" fontSize={11} />
+                <YAxis allowDecimals={false} fontSize={11} />
+                <Tooltip />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {poStatusBreakdown.map((entry) => (
+                    <Cell key={entry.key} fill={PO_STATUS_COLORS[entry.key]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+      </div>
+
       {myPerformance && (
         <section className="panel">
           <h2>My Performance</h2>
@@ -256,24 +347,45 @@ export default function Dashboard() {
       )}
 
       {isAdmin && (
-        <section className="panel">
-          <h2>Cash Flow Over Time</h2>
-          {cashTrend.length === 0 ? (
-            <p className="empty-note">No data for this range.</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={cashTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" fontSize={11} />
-                <YAxis fontSize={11} />
-                <Tooltip formatter={(v) => formatSAR(v)} />
-                <Legend />
-                <Line type="monotone" dataKey="inflow" stroke="#16a34a" name="Inflow" />
-                <Line type="monotone" dataKey="outflow" stroke="#dc2626" name="Outflow + Expense" />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </section>
+        <div className="chart-grid">
+          <section className="panel">
+            <h2>Cash Flow Over Time</h2>
+            {cashTrend.length === 0 ? (
+              <p className="empty-note">No data for this range.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={cashTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" fontSize={11} />
+                  <YAxis fontSize={11} />
+                  <Tooltip formatter={(v) => formatSAR(v)} />
+                  <Legend />
+                  <Line type="monotone" dataKey="inflow" stroke="#16a34a" name="Inflow" />
+                  <Line type="monotone" dataKey="outflow" stroke="#dc2626" name="Outflow + Expense" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </section>
+
+          <section className="panel">
+            <h2>Expense Breakdown by Category</h2>
+            {expenseByCategory.length === 0 ? (
+              <p className="empty-note">No data for this range.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={expenseByCategory} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90}>
+                    {expenseByCategory.map((entry, i) => (
+                      <Cell key={entry.name} fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => formatSAR(v)} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </section>
+        </div>
       )}
 
       <section className="panel">

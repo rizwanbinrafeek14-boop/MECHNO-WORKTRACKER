@@ -5,6 +5,7 @@ import { formatSAR, formatDate, daysSince } from '../lib/format'
 import { exportToCsv } from '../lib/csv'
 
 const emptyForm = {
+  quotation_number: '',
   customer_name: '',
   customer_contact: '',
   item_description: '',
@@ -49,6 +50,7 @@ export default function Quotations() {
     setError('')
     const { error } = await supabase.from('quotations').insert({
       employee_id: profile.id,
+      quotation_number: form.quotation_number || null,
       customer_name: form.customer_name,
       customer_contact: form.customer_contact || null,
       item_description: form.item_description,
@@ -112,6 +114,7 @@ export default function Quotations() {
   function startEdit(q) {
     setEditingId(q.id)
     setEditForm({
+      quotation_number: q.quotation_number || '',
       customer_name: q.customer_name,
       customer_contact: q.customer_contact || '',
       item_description: q.item_description,
@@ -129,6 +132,7 @@ export default function Quotations() {
     const { error } = await supabase
       .from('quotations')
       .update({
+        quotation_number: editForm.quotation_number || null,
         customer_name: editForm.customer_name,
         customer_contact: editForm.customer_contact || null,
         item_description: editForm.item_description,
@@ -161,6 +165,13 @@ export default function Quotations() {
         <h2>New Quotation</h2>
         <form className="inline-form grid-form" onSubmit={handleCreate}>
           {error && <div className="error-banner">{error}</div>}
+          <label>
+            Quotation No.
+            <input
+              value={form.quotation_number}
+              onChange={(e) => setForm({ ...form, quotation_number: e.target.value })}
+            />
+          </label>
           <label>
             Customer Name
             <input
@@ -232,6 +243,7 @@ export default function Quotations() {
               className="btn-small"
               onClick={() =>
                 exportToCsv('quotations.csv', filtered, [
+                  { label: 'Quotation No.', value: (q) => q.quotation_number || '' },
                   { label: 'Customer', value: (q) => q.customer_name },
                   { label: 'Contact', value: (q) => q.customer_contact || '' },
                   { label: 'Employee', value: (q) => q.profiles?.full_name || '' },
@@ -255,6 +267,7 @@ export default function Quotations() {
           <table className="data-table">
             <thead>
               <tr>
+                <th>Quotation No.</th>
                 <th>Customer</th>
                 {isAdmin && <th>Employee</th>}
                 <th>Item</th>
@@ -270,6 +283,13 @@ export default function Quotations() {
               {filtered.map((q) =>
                 editingId === q.id ? (
                   <tr key={q.id}>
+                    <td>
+                      <input
+                        placeholder="Quotation No."
+                        value={editForm.quotation_number}
+                        onChange={(e) => setEditForm({ ...editForm, quotation_number: e.target.value })}
+                      />
+                    </td>
                     <td>
                       <input
                         value={editForm.customer_name}
@@ -333,6 +353,7 @@ export default function Quotations() {
                           : ''
                       }
                     >
+                      <td>{q.quotation_number || '—'}</td>
                       <td>
                         {q.customer_name}
                         {q.customer_contact && <div className="muted">{q.customer_contact}</div>}
@@ -381,7 +402,7 @@ export default function Quotations() {
                     </tr>
                     {expandedId === q.id && (
                       <tr key={`${q.id}-history`}>
-                        <td colSpan={isAdmin ? 9 : 8}>
+                        <td colSpan={isAdmin ? 10 : 9}>
                           <div className="panel" style={{ margin: 0 }}>
                             <h2>Follow-up History — {q.customer_name}</h2>
                             {followupHistory.length === 0 ? (

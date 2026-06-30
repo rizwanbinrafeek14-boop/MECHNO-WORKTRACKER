@@ -135,6 +135,12 @@ create policy "purchase_orders_delete" on purchase_orders for delete
   using (employee_id = auth.uid() or is_admin());
 ```
 
+If your project predates the quotation number field, also run:
+
+```sql
+alter table quotations add column if not exists quotation_number text;
+```
+
 ## Features
 
 - **Daily Reports** — each employee logs a daily summary + quotation count;

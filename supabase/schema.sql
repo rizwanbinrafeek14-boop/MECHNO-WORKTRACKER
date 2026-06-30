@@ -57,6 +57,7 @@ create table if not exists supplier_purchases (
 create table if not exists quotations (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references profiles(id) on delete cascade,
+  quotation_number text,
   customer_name text not null,
   customer_contact text,
   item_description text not null,
