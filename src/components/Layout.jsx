@@ -18,6 +18,7 @@ export default function Layout() {
           <NavLink to="/" end>Dashboard</NavLink>
           <NavLink to="/reports">Daily Reports</NavLink>
           <NavLink to="/quotations">Quotations</NavLink>
+          <NavLink to="/purchase-orders">Purchase Orders</NavLink>
           <NavLink to="/suppliers">Suppliers</NavLink>
           {isAdmin && <NavLink to="/cashflow">Cash Flow</NavLink>}
           {isAdmin && <NavLink to="/employees">Employees</NavLink>}

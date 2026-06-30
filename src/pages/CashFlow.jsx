@@ -12,6 +12,18 @@ const TYPES = [
   { value: 'credit_taken', label: 'Credit Taken (we owe)' },
 ]
 
+const EXPENSE_CATEGORIES = [
+  'Fuel',
+  'Salaries',
+  'Rent',
+  'Utilities',
+  'Maintenance',
+  'Office Supplies',
+  'Transport',
+  'Marketing',
+  'Other',
+]
+
 const emptyForm = {
   entry_date: new Date().toISOString().slice(0, 10),
   type: 'inflow',
@@ -139,6 +151,28 @@ export default function CashFlow() {
     return Object.entries(byCat).sort(([, a], [, b]) => b - a)
   }, [rangeFiltered])
 
+  const receivablesByParty = useMemo(() => {
+    const byParty = {}
+    transactions
+      .filter((t) => t.type === 'credit_given' && !t.settled)
+      .forEach((t) => {
+        const party = t.party_name || 'Unknown'
+        byParty[party] = (byParty[party] || 0) + (Number(t.amount) || 0)
+      })
+    return Object.entries(byParty).sort(([, a], [, b]) => b - a)
+  }, [transactions])
+
+  const payablesByParty = useMemo(() => {
+    const byParty = {}
+    transactions
+      .filter((t) => t.type === 'credit_taken' && !t.settled)
+      .forEach((t) => {
+        const party = t.party_name || 'Unknown'
+        byParty[party] = (byParty[party] || 0) + (Number(t.amount) || 0)
+      })
+    return Object.entries(byParty).sort(([, a], [, b]) => b - a)
+  }, [transactions])
+
   const filtered = rangeFiltered.filter((t) => filter === 'all' || t.type === filter)
 
   return (
@@ -183,6 +217,56 @@ export default function CashFlow() {
         )}
       </section>
 
+      <div className="chart-grid">
+        <section className="panel">
+          <h2>Amount Receivable (by party)</h2>
+          {receivablesByParty.length === 0 ? (
+            <p className="empty-note">Nothing outstanding.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Party</th>
+                  <th>Outstanding</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receivablesByParty.map(([party, amt]) => (
+                  <tr key={party}>
+                    <td>{party}</td>
+                    <td>{formatSAR(amt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2>Amount Payable (by party)</h2>
+          {payablesByParty.length === 0 ? (
+            <p className="empty-note">Nothing outstanding.</p>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Party</th>
+                  <th>Outstanding</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payablesByParty.map(([party, amt]) => (
+                  <tr key={party}>
+                    <td>{party}</td>
+                    <td>{formatSAR(amt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </div>
+
       <section className="panel">
         <h2>New Entry</h2>
         <form className="inline-form grid-form" onSubmit={handleCreate}>
@@ -208,7 +292,18 @@ export default function CashFlow() {
           </label>
           <label>
             Category
-            <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+            {form.type === 'expense' ? (
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                <option value="">Select…</option>
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+            )}
           </label>
           <label>
             Amount (SAR)
@@ -314,10 +409,24 @@ export default function CashFlow() {
                       </select>
                     </td>
                     <td>
-                      <input
-                        value={editForm.category || ''}
-                        onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                      />
+                      {editForm.type === 'expense' ? (
+                        <select
+                          value={editForm.category || ''}
+                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                        >
+                          <option value="">Select…</option>
+                          {EXPENSE_CATEGORIES.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={editForm.category || ''}
+                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                        />
+                      )}
                     </td>
                     <td>
                       <input

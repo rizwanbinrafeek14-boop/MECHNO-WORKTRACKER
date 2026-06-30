@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import DailyReports from './pages/DailyReports'
 import Quotations from './pages/Quotations'
+import PurchaseOrders from './pages/PurchaseOrders'
 import Suppliers from './pages/Suppliers'
 import CashFlow from './pages/CashFlow'
 import Employees from './pages/Employees'
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/reports" element={<DailyReports />} />
             <Route path="/quotations" element={<Quotations />} />
+            <Route path="/purchase-orders" element={<PurchaseOrders />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route
               path="/cashflow"

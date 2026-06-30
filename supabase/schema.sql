@@ -79,6 +79,38 @@ create table if not exists quotation_followups (
   created_at timestamptz not null default now()
 );
 
+-- ─── Purchase orders ────────────────────────────────────────────
+create table if not exists purchase_orders (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references profiles(id) on delete cascade,
+  po_number text,
+  customer_name text not null,
+  item_description text not null,
+  amount numeric(12,2) not null default 0,
+  date_received date not null default current_date,
+  status text not null check (status in ('received', 'in_progress', 'completed')) default 'received',
+  completed_date date,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_purchase_orders_updated_at on purchase_orders;
+create trigger trg_purchase_orders_updated_at
+before update on purchase_orders
+for each row execute function set_updated_at();
+
+alter table purchase_orders enable row level security;
+
+create policy "purchase_orders_select" on purchase_orders for select
+  using (employee_id = auth.uid() or is_admin());
+create policy "purchase_orders_insert" on purchase_orders for insert
+  with check (employee_id = auth.uid() or is_admin());
+create policy "purchase_orders_update" on purchase_orders for update
+  using (employee_id = auth.uid() or is_admin());
+create policy "purchase_orders_delete" on purchase_orders for delete
+  using (employee_id = auth.uid() or is_admin());
+
 -- ─── Cash flow ──────────────────────────────────────────────────
 create table if not exists cash_transactions (
   id uuid primary key default gen_random_uuid(),
