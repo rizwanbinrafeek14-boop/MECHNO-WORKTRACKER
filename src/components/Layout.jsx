@@ -1,10 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/logo.png'
 import NotificationBell from './NotificationBell'
 
 export default function Layout() {
   const { profile, isAdmin, signOut } = useAuth()
+  const { theme, toggleTheme } = useTheme()
 
   return (
     <div className="app-shell">
@@ -12,6 +14,14 @@ export default function Layout() {
         <div className="brand">
           <img src={logo} alt="Mechno Skill" className="brand-logo" />
           Mechno Skill
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
         </div>
         {!isAdmin && <NotificationBell />}
         <nav>

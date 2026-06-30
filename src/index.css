@@ -12,6 +12,15 @@
   --font: 'Segoe UI', system-ui, Roboto, sans-serif;
 }
 
+[data-theme="dark"] {
+  --bg: #0b1220;
+  --sidebar: #060b18;
+  --card: #131b2e;
+  --border: #243049;
+  --text: #e2e8f0;
+  --text-2: #94a3b8;
+}
+
 * { box-sizing: border-box; }
 
 html, body, #root {
@@ -20,9 +29,11 @@ html, body, #root {
   font-family: var(--font);
   color: var(--text);
   background: var(--bg);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 button, input, select, textarea { font-family: inherit; font-size: 14px; }
+input, select, textarea { background: var(--card); color: var(--text); }
 
 /* ─── Auth screen ─────────────────────────────────────────── */
 .auth-screen {
@@ -135,6 +146,23 @@ button, input, select, textarea { font-family: inherit; font-size: 14px; }
   height: 32px;
   object-fit: contain;
 }
+
+.theme-toggle {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle:hover { background: rgba(255,255,255,0.08); }
 
 .sidebar nav {
   display: flex;
