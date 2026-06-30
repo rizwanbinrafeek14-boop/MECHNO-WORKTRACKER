@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import logo from '../assets/logo.png'
 
 export default function Layout() {
   const { profile, isAdmin, signOut } = useAuth()
@@ -7,7 +8,10 @@ export default function Layout() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">Mechno Skill</div>
+        <div className="brand">
+          <img src={logo} alt="Mechno Skill" className="brand-logo" />
+          Mechno Skill
+        </div>
         <nav>
           <NavLink to="/" end>Dashboard</NavLink>
           <NavLink to="/reports">Daily Reports</NavLink>

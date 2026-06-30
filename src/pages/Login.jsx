@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import logo from '../assets/logo.png'
 
 export default function Login() {
   const { signIn, signUp } = useAuth()
@@ -37,6 +38,7 @@ export default function Login() {
   return (
     <div className="auth-screen">
       <form className="auth-card" onSubmit={handleSubmit}>
+        <img src={logo} alt="Mechno Skill" className="auth-logo" />
         <h1>Mechno Skill</h1>
         <p className="subtitle">{mode === 'signin' ? 'Staff Login' : 'Create Staff Account'}</p>
         {error && <div className="error-banner">{error}</div>}
