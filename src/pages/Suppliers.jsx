@@ -1,10 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { formatSAR, formatDate } from '../lib/format'
 
 const emptyForm = { name: '', sells: '', contact_phone: '', contact_email: '', location: '', notes: '' }
 const emptyPurchase = { purchase_date: new Date().toISOString().slice(0, 10), item_description: '', amount: '', notes: '' }
+
+const CATEGORY_GROUPS = [
+  {
+    label: null,
+    items: [
+      { name: 'CS', color: '#2563eb' },
+      { name: 'SS', color: '#16a34a' },
+      { name: 'GI', color: '#92400e' },
+      { name: 'BMI', color: '#475569' },
+      { name: 'Brass', color: '#b45309' },
+      { name: 'Bronze', color: '#9a3412' },
+      { name: 'Copper', color: '#c2410c' },
+      { name: 'PVC', color: '#2563eb' },
+      { name: 'CPVC', color: '#7c3aed' },
+      { name: 'PPR', color: '#15803d' },
+      { name: 'HDPE', color: '#9333ea' },
+    ],
+  },
+  {
+    label: 'Specialty',
+    items: [
+      { name: 'Electrical', color: '#c2410c' },
+      { name: 'Safety Equip.', color: '#dc2626' },
+      { name: 'Hardware', color: '#0d9488' },
+      { name: 'Clamps', color: '#0f766e' },
+      { name: 'Fasteners', color: '#7c3aed' },
+      { name: 'Gaskets', color: '#9f1239' },
+    ],
+  },
+]
 
 export default function Suppliers() {
   const { isAdmin } = useAuth()
@@ -133,6 +163,20 @@ export default function Suppliers() {
     )
   })
 
+  const categoryCounts = useMemo(() => {
+    const counts = {}
+    CATEGORY_GROUPS.forEach((g) =>
+      g.items.forEach((c) => {
+        counts[c.name] = suppliers.filter((s) => s.sells.toLowerCase().includes(c.name.toLowerCase())).length
+      })
+    )
+    return counts
+  }, [suppliers])
+
+  function selectCategory(name) {
+    setSearch((prev) => (prev === name ? '' : name))
+  }
+
   return (
     <div>
       <h1 className="page-title">Suppliers</h1>
@@ -178,7 +222,36 @@ export default function Suppliers() {
         </form>
       </section>
 
-      <section className="panel">
+      <div className="suppliers-layout">
+        <section className="panel categories-panel">
+          <h2>Categories</h2>
+          <ul className="category-list">
+            {CATEGORY_GROUPS.map((group, gi) => (
+              <li key={gi}>
+                {group.label && <div className="category-group-label">{group.label}</div>}
+                <ul className="category-list">
+                  {group.items.map((c) => (
+                    <li
+                      key={c.name}
+                      className={`category-item ${search === c.name ? 'category-item-active' : ''}`}
+                      onClick={() => selectCategory(c.name)}
+                    >
+                      <span className="category-dot" style={{ background: c.color }} />
+                      <span className="category-name">{c.name}</span>
+                      {categoryCounts[c.name] > 0 && (
+                        <span className="category-count" style={{ color: c.color }}>
+                          {categoryCounts[c.name]}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="panel directory-panel">
         <div className="panel-header-row">
           <h2>Supplier Directory</h2>
           <input
@@ -382,7 +455,8 @@ export default function Suppliers() {
             </tbody>
           </table>
         )}
-      </section>
+        </section>
+      </div>
     </div>
   )
 }

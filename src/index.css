@@ -482,6 +482,86 @@ input, select, textarea { background: var(--card); color: var(--text); }
 .data-table td input:last-child,
 .data-table td textarea:last-child { margin-bottom: 0; }
 
+/* ─── Suppliers: categories panel ─────────────────────────── */
+.suppliers-layout {
+  display: flex;
+  gap: 22px;
+  align-items: flex-start;
+}
+
+.categories-panel {
+  width: 220px;
+  flex-shrink: 0;
+  max-height: 640px;
+  overflow-y: auto;
+}
+
+.directory-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.category-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  text-transform: uppercase;
+  margin: 16px 0 6px;
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.category-item:hover {
+  background: rgba(37, 99, 235, 0.07);
+}
+
+.category-item-active {
+  background: rgba(37, 99, 235, 0.12);
+  font-weight: 600;
+}
+
+.category-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.category-name {
+  flex: 1;
+}
+
+.category-count {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+@media (max-width: 880px) {
+  .suppliers-layout {
+    flex-direction: column;
+  }
+
+  .categories-panel {
+    width: 100%;
+    max-height: none;
+  }
+}
+
 /* ─── Mobile / responsive ──────────────────────────────────── */
 .mobile-topbar-toggle {
   display: none;
