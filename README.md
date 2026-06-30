@@ -170,6 +170,33 @@ create policy "cash_delete" on cash_transactions for delete
   using (created_by = auth.uid() or is_admin());
 ```
 
+If your project predates the "Quoted By" name list on quotations, also run:
+
+```sql
+create table if not exists agents (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table agents enable row level security;
+
+drop policy if exists "agents_select" on agents;
+create policy "agents_select" on agents for select
+  using (auth.uid() is not null);
+drop policy if exists "agents_insert" on agents;
+create policy "agents_insert" on agents for insert
+  with check (is_admin());
+drop policy if exists "agents_delete" on agents;
+create policy "agents_delete" on agents for delete
+  using (is_admin());
+
+alter table quotations add column if not exists quoted_by text;
+
+insert into agents (name) values ('Shiraz'), ('Imran'), ('Irshad')
+on conflict (name) do nothing;
+```
+
 ## Features
 
 - **Daily Reports** — each employee logs a daily summary + quotation count;

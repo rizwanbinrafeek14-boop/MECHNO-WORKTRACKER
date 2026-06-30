@@ -53,11 +53,31 @@ create table if not exists supplier_purchases (
   created_at timestamptz not null default now()
 );
 
+-- ─── Agents (name-only list of who quoted, no login required) ──
+create table if not exists agents (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table agents enable row level security;
+
+drop policy if exists "agents_select" on agents;
+create policy "agents_select" on agents for select
+  using (auth.uid() is not null);
+drop policy if exists "agents_insert" on agents;
+create policy "agents_insert" on agents for insert
+  with check (is_admin());
+drop policy if exists "agents_delete" on agents;
+create policy "agents_delete" on agents for delete
+  using (is_admin());
+
 -- ─── Quotations ─────────────────────────────────────────────────
 create table if not exists quotations (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references profiles(id) on delete cascade,
   quotation_number text,
+  quoted_by text,
   customer_name text not null,
   customer_contact text,
   item_description text not null,

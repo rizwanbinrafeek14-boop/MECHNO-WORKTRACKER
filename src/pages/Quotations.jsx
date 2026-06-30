@@ -5,7 +5,7 @@ import { formatSAR, formatDate, daysSince } from '../lib/format'
 import { exportToCsv } from '../lib/csv'
 
 const emptyForm = {
-  employee_id: '',
+  quoted_by: '',
   quotation_number: '',
   customer_name: '',
   customer_contact: '',
@@ -18,7 +18,8 @@ const emptyForm = {
 export default function Quotations() {
   const { profile, isAdmin } = useAuth()
   const [quotations, setQuotations] = useState([])
-  const [employees, setEmployees] = useState([])
+  const [agents, setAgents] = useState([])
+  const [newAgentName, setNewAgentName] = useState('')
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -35,12 +36,30 @@ export default function Quotations() {
   }, [profile])
 
   useEffect(() => {
-    if (isAdmin) loadEmployees()
-  }, [isAdmin])
+    loadAgents()
+  }, [])
 
-  async function loadEmployees() {
-    const { data } = await supabase.from('profiles').select('id, full_name').order('full_name')
-    setEmployees(data ?? [])
+  async function loadAgents() {
+    const { data } = await supabase.from('agents').select('*').order('name')
+    setAgents(data ?? [])
+  }
+
+  async function addAgent(e) {
+    e.preventDefault()
+    if (!newAgentName.trim()) return
+    const { error } = await supabase.from('agents').insert({ name: newAgentName.trim() })
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setNewAgentName('')
+    loadAgents()
+  }
+
+  async function deleteAgent(id) {
+    if (!window.confirm('Remove this name from the list?')) return
+    await supabase.from('agents').delete().eq('id', id)
+    loadAgents()
   }
 
   async function load() {
@@ -60,7 +79,8 @@ export default function Quotations() {
     setSaving(true)
     setError('')
     const { error } = await supabase.from('quotations').insert({
-      employee_id: (isAdmin && form.employee_id) || profile.id,
+      employee_id: profile.id,
+      quoted_by: form.quoted_by || null,
       quotation_number: form.quotation_number || null,
       customer_name: form.customer_name,
       customer_contact: form.customer_contact || null,
@@ -144,7 +164,7 @@ export default function Quotations() {
   function startEdit(q) {
     setEditingId(q.id)
     setEditForm({
-      employee_id: q.employee_id,
+      quoted_by: q.quoted_by || '',
       quotation_number: q.quotation_number || '',
       customer_name: q.customer_name,
       customer_contact: q.customer_contact || '',
@@ -163,7 +183,7 @@ export default function Quotations() {
     const { error } = await supabase
       .from('quotations')
       .update({
-        employee_id: editForm.employee_id,
+        quoted_by: editForm.quoted_by || null,
         quotation_number: editForm.quotation_number || null,
         customer_name: editForm.customer_name,
         customer_contact: editForm.customer_contact || null,
@@ -193,26 +213,53 @@ export default function Quotations() {
     <div>
       <h1 className="page-title">Quotations</h1>
 
+      {isAdmin && (
+        <section className="panel">
+          <h2>Quoted By — Names</h2>
+          <form className="inline-form" style={{ flexDirection: 'row', gap: 8 }} onSubmit={addAgent}>
+            <input
+              placeholder="Add a name, e.g. Shiraz"
+              value={newAgentName}
+              onChange={(e) => setNewAgentName(e.target.value)}
+            />
+            <button type="submit" className="btn-small">
+              Add
+            </button>
+          </form>
+          {agents.length > 0 && (
+            <div className="actions-cell" style={{ marginTop: 10 }}>
+              {agents.map((a) => (
+                <span key={a.id} className="badge badge-employee">
+                  {a.name}{' '}
+                  <button
+                    type="button"
+                    onClick={() => deleteAgent(a.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 4 }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       <section className="panel">
         <h2>New Quotation</h2>
         <form className="inline-form grid-form" onSubmit={handleCreate}>
           {error && <div className="error-banner">{error}</div>}
-          {isAdmin && (
-            <label>
-              Employee
-              <select
-                value={form.employee_id}
-                onChange={(e) => setForm({ ...form, employee_id: e.target.value })}
-              >
-                <option value="">Myself ({profile?.full_name})</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.full_name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <label>
+            Quoted By
+            <select value={form.quoted_by} onChange={(e) => setForm({ ...form, quoted_by: e.target.value })}>
+              <option value="">— Select —</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.name}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             Quotation No.
             <input
@@ -294,7 +341,8 @@ export default function Quotations() {
                   { label: 'Quotation No.', value: (q) => q.quotation_number || '' },
                   { label: 'Customer', value: (q) => q.customer_name },
                   { label: 'Contact', value: (q) => q.customer_contact || '' },
-                  { label: 'Employee', value: (q) => q.profiles?.full_name || '' },
+                  { label: 'Quoted By', value: (q) => q.quoted_by || '' },
+                  { label: 'Created By', value: (q) => q.profiles?.full_name || '' },
                   { label: 'Item', value: (q) => q.item_description },
                   { label: 'Amount', value: (q) => q.amount },
                   { label: 'Date Sent', value: (q) => q.date_sent },
@@ -317,7 +365,8 @@ export default function Quotations() {
               <tr>
                 <th>Quotation No.</th>
                 <th>Customer</th>
-                {isAdmin && <th>Employee</th>}
+                <th>Quoted By</th>
+                {isAdmin && <th>Created By</th>}
                 <th>Item</th>
                 <th>Amount</th>
                 <th>Sent</th>
@@ -349,20 +398,20 @@ export default function Quotations() {
                         onChange={(e) => setEditForm({ ...editForm, customer_contact: e.target.value })}
                       />
                     </td>
-                    {isAdmin && (
-                      <td>
-                        <select
-                          value={editForm.employee_id}
-                          onChange={(e) => setEditForm({ ...editForm, employee_id: e.target.value })}
-                        >
-                          {employees.map((emp) => (
-                            <option key={emp.id} value={emp.id}>
-                              {emp.full_name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    )}
+                    <td>
+                      <select
+                        value={editForm.quoted_by}
+                        onChange={(e) => setEditForm({ ...editForm, quoted_by: e.target.value })}
+                      >
+                        <option value="">— Select —</option>
+                        {agents.map((a) => (
+                          <option key={a.id} value={a.name}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    {isAdmin && <td>{q.profiles?.full_name}</td>}
                     <td>
                       <input
                         value={editForm.item_description}
@@ -419,6 +468,7 @@ export default function Quotations() {
                         {q.customer_name}
                         {q.customer_contact && <div className="muted">{q.customer_contact}</div>}
                       </td>
+                      <td>{q.quoted_by || '—'}</td>
                       {isAdmin && <td>{q.profiles?.full_name}</td>}
                       <td>{q.item_description}</td>
                       <td>{formatSAR(q.amount)}</td>
@@ -473,7 +523,7 @@ export default function Quotations() {
                     </tr>
                     {expandedId === q.id && (
                       <tr key={`${q.id}-history`}>
-                        <td colSpan={isAdmin ? 10 : 9}>
+                        <td colSpan={isAdmin ? 11 : 10}>
                           <div className="panel" style={{ margin: 0 }}>
                             <h2>Follow-up History — {q.customer_name}</h2>
                             {followupHistory.length === 0 ? (
