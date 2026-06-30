@@ -21,9 +21,12 @@ create table if not exists daily_reports (
   report_date date not null default current_date,
   summary text not null,
   quotations_made int not null default 0,
+  admin_feedback text,
   created_at timestamptz not null default now(),
   unique (employee_id, report_date)
 );
+
+alter table daily_reports add column if not exists admin_feedback text;
 
 -- ─── Suppliers ──────────────────────────────────────────────────
 create table if not exists suppliers (
@@ -33,6 +36,18 @@ create table if not exists suppliers (
   contact_phone text,
   contact_email text,
   location text,
+  notes text,
+  created_by uuid references profiles(id),
+  created_at timestamptz not null default now()
+);
+
+-- ─── Supplier purchase history ─────────────────────────────────
+create table if not exists supplier_purchases (
+  id uuid primary key default gen_random_uuid(),
+  supplier_id uuid not null references suppliers(id) on delete cascade,
+  purchase_date date not null default current_date,
+  item_description text not null,
+  amount numeric(12,2) not null default 0,
   notes text,
   created_by uuid references profiles(id),
   created_at timestamptz not null default now()
@@ -109,6 +124,7 @@ $$;
 alter table profiles enable row level security;
 alter table daily_reports enable row level security;
 alter table suppliers enable row level security;
+alter table supplier_purchases enable row level security;
 alter table quotations enable row level security;
 alter table quotation_followups enable row level security;
 alter table cash_transactions enable row level security;
@@ -159,6 +175,16 @@ create policy "suppliers_insert" on suppliers for insert
 create policy "suppliers_update" on suppliers for update
   using (is_admin());
 create policy "suppliers_delete" on suppliers for delete
+  using (is_admin());
+
+-- supplier_purchases: any logged-in user can view; only admins manage
+create policy "supplier_purchases_select" on supplier_purchases for select
+  using (auth.uid() is not null);
+create policy "supplier_purchases_insert" on supplier_purchases for insert
+  with check (is_admin());
+create policy "supplier_purchases_update" on supplier_purchases for update
+  using (is_admin());
+create policy "supplier_purchases_delete" on supplier_purchases for delete
   using (is_admin());
 
 -- cash_transactions: admin only

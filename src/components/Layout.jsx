@@ -15,6 +15,7 @@ export default function Layout() {
           <NavLink to="/suppliers">Suppliers</NavLink>
           {isAdmin && <NavLink to="/cashflow">Cash Flow</NavLink>}
           {isAdmin && <NavLink to="/employees">Employees</NavLink>}
+          {isAdmin && <NavLink to="/performance">Performance</NavLink>}
         </nav>
         <div className="sidebar-footer">
           <div className="user-name">{profile?.full_name ?? '…'}</div>

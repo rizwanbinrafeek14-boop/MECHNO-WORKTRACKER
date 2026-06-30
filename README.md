@@ -41,16 +41,56 @@ update profiles set role = 'admin' where id = (
 From then on, admins can promote/demote other staff from the **Employees** page
 in the app.
 
+## Updating an existing Supabase project
+
+If your project was created before the Performance/Suppliers-purchase-history
+features were added, run this once in the SQL editor to bring an existing
+database up to date (safe to re-run, it only adds what's missing):
+
+```sql
+alter table daily_reports add column if not exists admin_feedback text;
+
+create table if not exists supplier_purchases (
+  id uuid primary key default gen_random_uuid(),
+  supplier_id uuid not null references suppliers(id) on delete cascade,
+  purchase_date date not null default current_date,
+  item_description text not null,
+  amount numeric(12,2) not null default 0,
+  notes text,
+  created_by uuid references profiles(id),
+  created_at timestamptz not null default now()
+);
+
+alter table supplier_purchases enable row level security;
+
+create policy "supplier_purchases_select" on supplier_purchases for select
+  using (auth.uid() is not null);
+create policy "supplier_purchases_insert" on supplier_purchases for insert
+  with check (is_admin());
+create policy "supplier_purchases_update" on supplier_purchases for update
+  using (is_admin());
+create policy "supplier_purchases_delete" on supplier_purchases for delete
+  using (is_admin());
+```
+
 ## Features
 
-- **Daily Reports** — each employee logs a daily summary + quotation count.
+- **Daily Reports** — each employee logs a daily summary + quotation count;
+  employees can edit past entries, admins can leave feedback per report and
+  filter history by employee.
 - **Quotations** — track customer, item, amount (SAR), status, rejection reason;
-  dashboard flags quotations pending 3+ days with no reply.
+  full edit/delete; dashboard flags quotations pending 3+ days with no reply.
 - **Cash Flow** — inflow/outflow, daily expenses, credit given/taken with
-  settlement tracking (admin only).
-- **Suppliers** — directory of what each supplier sells, contact info, location.
+  settlement tracking, inline edit/delete, date-range filter, and totals by
+  category (admin only).
+- **Suppliers** — directory of what each supplier sells, contact info,
+  location; admins can edit/delete suppliers and log a purchase history per
+  supplier (date, item, amount, notes).
 - **Dashboard** — admin sees progress across all employees; employees see their
   own stats and follow-up alerts.
+- **Performance** (admin only) — leaderboard of conversion rate, average
+  follow-up speed, overdue follow-ups, daily-report consistency, and revenue
+  contribution per employee, with a chart and CSV export.
 
 ## Deploying
 

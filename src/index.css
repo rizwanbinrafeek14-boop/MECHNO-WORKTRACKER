@@ -352,3 +352,15 @@ button, input, select, textarea { font-family: inherit; font-size: 14px; }
 .badge-expense { background: #fef3c7; color: #92400e; }
 .badge-credit_given { background: #e0e7ff; color: #3730a3; }
 .badge-credit_taken { background: #fce7f3; color: #9d174d; }
+
+.data-table td input,
+.data-table td select,
+.data-table td textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  margin-bottom: 4px;
+}
+.data-table td input:last-child,
+.data-table td textarea:last-child { margin-bottom: 0; }

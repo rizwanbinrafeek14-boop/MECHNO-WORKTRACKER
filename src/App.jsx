@@ -10,6 +10,7 @@ import Suppliers from './pages/Suppliers'
 import CashFlow from './pages/CashFlow'
 import Employees from './pages/Employees'
 import EmployeeDetail from './pages/EmployeeDetail'
+import Performance from './pages/Performance'
 
 export default function App() {
   return (
@@ -49,6 +50,14 @@ export default function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <EmployeeDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/performance"
+              element={
+                <ProtectedRoute adminOnly>
+                  <Performance />
                 </ProtectedRoute>
               }
             />

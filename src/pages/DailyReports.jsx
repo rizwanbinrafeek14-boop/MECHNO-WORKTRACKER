@@ -11,6 +11,11 @@ export default function DailyReports() {
   const [form, setForm] = useState({ summary: '', quotations_made: 0 })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [employeeFilter, setEmployeeFilter] = useState('all')
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState(null)
+  const [feedbackId, setFeedbackId] = useState(null)
+  const [feedbackText, setFeedbackText] = useState('')
 
   useEffect(() => {
     if (profile) load()
@@ -52,6 +57,40 @@ export default function DailyReports() {
     load()
   }
 
+  function startEdit(r) {
+    setEditingId(r.id)
+    setEditForm({ summary: r.summary, quotations_made: r.quotations_made })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm(null)
+  }
+
+  async function saveEdit(id) {
+    await supabase
+      .from('daily_reports')
+      .update({ summary: editForm.summary, quotations_made: Number(editForm.quotations_made) || 0 })
+      .eq('id', id)
+    cancelEdit()
+    load()
+  }
+
+  async function saveFeedback(id) {
+    await supabase.from('daily_reports').update({ admin_feedback: feedbackText }).eq('id', id)
+    setFeedbackId(null)
+    setFeedbackText('')
+    load()
+  }
+
+  const employeeOptions = isAdmin
+    ? [...new Map(reports.map((r) => [r.employee_id, r.profiles?.full_name || 'Unknown'])).entries()]
+    : []
+
+  const visibleReports = reports.filter(
+    (r) => employeeFilter === 'all' || r.employee_id === employeeFilter
+  )
+
   return (
     <div>
       <h1 className="page-title">Daily Work Reports</h1>
@@ -89,23 +128,36 @@ export default function DailyReports() {
       <section className="panel">
         <div className="panel-header-row">
           <h2>History</h2>
-          <button
-            className="btn-small"
-            onClick={() =>
-              exportToCsv('daily-reports.csv', reports, [
-                { label: 'Date', value: (r) => r.report_date },
-                { label: 'Employee', value: (r) => r.profiles?.full_name || '' },
-                { label: 'Quotations Made', value: (r) => r.quotations_made },
-                { label: 'Summary', value: (r) => r.summary },
-              ])
-            }
-          >
-            Export CSV
-          </button>
+          <div className="row-actions">
+            {isAdmin && (
+              <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)}>
+                <option value="all">All Employees</option>
+                {employeeOptions.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              className="btn-small"
+              onClick={() =>
+                exportToCsv('daily-reports.csv', visibleReports, [
+                  { label: 'Date', value: (r) => r.report_date },
+                  { label: 'Employee', value: (r) => r.profiles?.full_name || '' },
+                  { label: 'Quotations Made', value: (r) => r.quotations_made },
+                  { label: 'Summary', value: (r) => r.summary },
+                  { label: 'Admin Feedback', value: (r) => r.admin_feedback || '' },
+                ])
+              }
+            >
+              Export CSV
+            </button>
+          </div>
         </div>
         {loading ? (
           <p className="empty-note">Loading…</p>
-        ) : reports.length === 0 ? (
+        ) : visibleReports.length === 0 ? (
           <p className="empty-note">No reports yet.</p>
         ) : (
           <table className="data-table">
@@ -115,17 +167,89 @@ export default function DailyReports() {
                 {isAdmin && <th>Employee</th>}
                 <th>Quotations Made</th>
                 <th>Summary</th>
+                <th>Admin Feedback</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {reports.map((r) => (
-                <tr key={r.id}>
-                  <td>{formatDate(r.report_date)}</td>
-                  {isAdmin && <td>{r.profiles?.full_name}</td>}
-                  <td>{r.quotations_made}</td>
-                  <td>{r.summary}</td>
-                </tr>
-              ))}
+              {visibleReports.map((r) =>
+                editingId === r.id ? (
+                  <tr key={r.id}>
+                    <td>{formatDate(r.report_date)}</td>
+                    {isAdmin && <td>{r.profiles?.full_name}</td>}
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editForm.quotations_made}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, quotations_made: e.target.value })
+                        }
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        rows={2}
+                        value={editForm.summary}
+                        onChange={(e) => setEditForm({ ...editForm, summary: e.target.value })}
+                      />
+                    </td>
+                    <td>{r.admin_feedback || '—'}</td>
+                    <td className="actions-cell">
+                      <button className="btn-small btn-success" onClick={() => saveEdit(r.id)}>
+                        Save
+                      </button>
+                      <button className="btn-small" onClick={cancelEdit}>
+                        Cancel
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={r.id}>
+                    <td>{formatDate(r.report_date)}</td>
+                    {isAdmin && <td>{r.profiles?.full_name}</td>}
+                    <td>{r.quotations_made}</td>
+                    <td>{r.summary}</td>
+                    <td>
+                      {feedbackId === r.id ? (
+                        <div className="row-actions">
+                          <input
+                            value={feedbackText}
+                            onChange={(e) => setFeedbackText(e.target.value)}
+                            placeholder="Feedback…"
+                          />
+                          <button className="btn-small btn-success" onClick={() => saveFeedback(r.id)}>
+                            Save
+                          </button>
+                          <button className="btn-small" onClick={() => setFeedbackId(null)}>
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        r.admin_feedback || '—'
+                      )}
+                    </td>
+                    <td className="actions-cell">
+                      {!isAdmin && (
+                        <button className="btn-small" onClick={() => startEdit(r)}>
+                          Edit
+                        </button>
+                      )}
+                      {isAdmin && feedbackId !== r.id && (
+                        <button
+                          className="btn-small"
+                          onClick={() => {
+                            setFeedbackId(r.id)
+                            setFeedbackText(r.admin_feedback || '')
+                          }}
+                        >
+                          {r.admin_feedback ? 'Edit Feedback' : 'Add Feedback'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         )}

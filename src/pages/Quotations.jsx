@@ -21,6 +21,8 @@ export default function Quotations() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all')
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState(null)
 
   useEffect(() => {
     if (profile) load()
@@ -82,6 +84,47 @@ export default function Quotations() {
       notes,
     })
     await supabase.from('quotations').update({ last_followed_up_at: today }).eq('id', q.id)
+    load()
+  }
+
+  function startEdit(q) {
+    setEditingId(q.id)
+    setEditForm({
+      customer_name: q.customer_name,
+      customer_contact: q.customer_contact || '',
+      item_description: q.item_description,
+      amount: q.amount,
+      next_follow_up_date: q.next_follow_up_date || '',
+    })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm(null)
+  }
+
+  async function saveEdit(id) {
+    const { error } = await supabase
+      .from('quotations')
+      .update({
+        customer_name: editForm.customer_name,
+        customer_contact: editForm.customer_contact || null,
+        item_description: editForm.item_description,
+        amount: Number(editForm.amount) || 0,
+        next_follow_up_date: editForm.next_follow_up_date || null,
+      })
+      .eq('id', id)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    cancelEdit()
+    load()
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm('Delete this quotation?')) return
+    await supabase.from('quotations').delete().eq('id', id)
     load()
   }
 
@@ -201,49 +244,112 @@ export default function Quotations() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((q) => (
-                <tr
-                  key={q.id}
-                  className={
-                    q.status === 'pending' && daysSince(q.date_sent) >= 3 ? 'row-alert' : ''
-                  }
-                >
-                  <td>
-                    {q.customer_name}
-                    {q.customer_contact && <div className="muted">{q.customer_contact}</div>}
-                  </td>
-                  {isAdmin && <td>{q.profiles?.full_name}</td>}
-                  <td>{q.item_description}</td>
-                  <td>{formatSAR(q.amount)}</td>
-                  <td>{formatDate(q.date_sent)}</td>
-                  <td>
-                    <span className={`badge badge-${q.status}`}>{q.status}</span>
-                  </td>
-                  <td>{q.status === 'pending' ? `${daysSince(q.date_sent)}d` : '—'}</td>
-                  <td>{q.rejection_reason || '—'}</td>
-                  <td className="actions-cell">
-                    {q.status === 'pending' && (
-                      <>
-                        <button className="btn-small" onClick={() => logFollowUp(q)}>
-                          Log Follow-up
+              {filtered.map((q) =>
+                editingId === q.id ? (
+                  <tr key={q.id}>
+                    <td>
+                      <input
+                        value={editForm.customer_name}
+                        onChange={(e) => setEditForm({ ...editForm, customer_name: e.target.value })}
+                      />
+                      <input
+                        placeholder="Contact"
+                        value={editForm.customer_contact}
+                        onChange={(e) => setEditForm({ ...editForm, customer_contact: e.target.value })}
+                      />
+                    </td>
+                    {isAdmin && <td>{q.profiles?.full_name}</td>}
+                    <td>
+                      <input
+                        value={editForm.item_description}
+                        onChange={(e) => setEditForm({ ...editForm, item_description: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={editForm.amount}
+                        onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                      />
+                    </td>
+                    <td>{formatDate(q.date_sent)}</td>
+                    <td>
+                      <span className={`badge badge-${q.status}`}>{q.status}</span>
+                    </td>
+                    <td>
+                      Next follow-up:
+                      <input
+                        type="date"
+                        value={editForm.next_follow_up_date}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, next_follow_up_date: e.target.value })
+                        }
+                      />
+                    </td>
+                    <td>{q.rejection_reason || '—'}</td>
+                    <td className="actions-cell">
+                      <button className="btn-small btn-success" onClick={() => saveEdit(q.id)}>
+                        Save
+                      </button>
+                      <button className="btn-small" onClick={cancelEdit}>
+                        Cancel
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr
+                    key={q.id}
+                    className={
+                      q.status === 'pending' && daysSince(q.date_sent) >= 3 ? 'row-alert' : ''
+                    }
+                  >
+                    <td>
+                      {q.customer_name}
+                      {q.customer_contact && <div className="muted">{q.customer_contact}</div>}
+                    </td>
+                    {isAdmin && <td>{q.profiles?.full_name}</td>}
+                    <td>{q.item_description}</td>
+                    <td>{formatSAR(q.amount)}</td>
+                    <td>{formatDate(q.date_sent)}</td>
+                    <td>
+                      <span className={`badge badge-${q.status}`}>{q.status}</span>
+                    </td>
+                    <td>{q.status === 'pending' ? `${daysSince(q.date_sent)}d` : '—'}</td>
+                    <td>{q.rejection_reason || '—'}</td>
+                    <td className="actions-cell">
+                      {q.status === 'pending' && (
+                        <>
+                          <button className="btn-small" onClick={() => logFollowUp(q)}>
+                            Log Follow-up
+                          </button>
+                          <button
+                            className="btn-small btn-success"
+                            onClick={() => updateStatus(q, 'accepted')}
+                          >
+                            Accepted
+                          </button>
+                          <button
+                            className="btn-small btn-danger"
+                            onClick={() => updateStatus(q, 'rejected')}
+                          >
+                            Rejected
+                          </button>
+                        </>
+                      )}
+                      <button className="btn-small" onClick={() => startEdit(q)}>
+                        Edit
+                      </button>
+                      {isAdmin && (
+                        <button className="btn-small btn-danger" onClick={() => handleDelete(q.id)}>
+                          Delete
                         </button>
-                        <button
-                          className="btn-small btn-success"
-                          onClick={() => updateStatus(q, 'accepted')}
-                        >
-                          Accepted
-                        </button>
-                        <button
-                          className="btn-small btn-danger"
-                          onClick={() => updateStatus(q, 'rejected')}
-                        >
-                          Rejected
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      )}
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         )}
