@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { formatSAR, formatDate } from '../lib/format'
 import { exportToCsv } from '../lib/csv'
 import DateRangeFilter from '../components/DateRangeFilter'
@@ -34,6 +35,7 @@ const emptyForm = {
 }
 
 export default function CashFlow() {
+  const { profile, isAdmin } = useAuth()
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyForm)
@@ -69,6 +71,7 @@ export default function CashFlow() {
       amount: Number(form.amount) || 0,
       party_name: form.party_name || null,
       description: form.description || null,
+      created_by: profile.id,
     })
     setSaving(false)
     if (error) {
@@ -478,12 +481,16 @@ export default function CashFlow() {
                       )}
                     </td>
                     <td className="actions-cell">
-                      <button className="btn-small" onClick={() => startEdit(t)}>
-                        Edit
-                      </button>
-                      <button className="btn-small btn-danger" onClick={() => handleDelete(t.id)}>
-                        Delete
-                      </button>
+                      {(isAdmin || t.created_by === profile?.id) && (
+                        <>
+                          <button className="btn-small" onClick={() => startEdit(t)}>
+                            Edit
+                          </button>
+                          <button className="btn-small btn-danger" onClick={() => handleDelete(t.id)}>
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 )

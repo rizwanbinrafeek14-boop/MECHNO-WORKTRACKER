@@ -5,6 +5,7 @@ import { formatSAR, formatDate, daysSince } from '../lib/format'
 import { exportToCsv } from '../lib/csv'
 
 const emptyForm = {
+  employee_id: '',
   quotation_number: '',
   customer_name: '',
   customer_contact: '',
@@ -17,6 +18,7 @@ const emptyForm = {
 export default function Quotations() {
   const { profile, isAdmin } = useAuth()
   const [quotations, setQuotations] = useState([])
+  const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -31,6 +33,15 @@ export default function Quotations() {
     if (profile) load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile])
+
+  useEffect(() => {
+    if (isAdmin) loadEmployees()
+  }, [isAdmin])
+
+  async function loadEmployees() {
+    const { data } = await supabase.from('profiles').select('id, full_name').order('full_name')
+    setEmployees(data ?? [])
+  }
 
   async function load() {
     setLoading(true)
@@ -49,7 +60,7 @@ export default function Quotations() {
     setSaving(true)
     setError('')
     const { error } = await supabase.from('quotations').insert({
-      employee_id: profile.id,
+      employee_id: (isAdmin && form.employee_id) || profile.id,
       quotation_number: form.quotation_number || null,
       customer_name: form.customer_name,
       customer_contact: form.customer_contact || null,
@@ -133,6 +144,7 @@ export default function Quotations() {
   function startEdit(q) {
     setEditingId(q.id)
     setEditForm({
+      employee_id: q.employee_id,
       quotation_number: q.quotation_number || '',
       customer_name: q.customer_name,
       customer_contact: q.customer_contact || '',
@@ -151,6 +163,7 @@ export default function Quotations() {
     const { error } = await supabase
       .from('quotations')
       .update({
+        employee_id: editForm.employee_id,
         quotation_number: editForm.quotation_number || null,
         customer_name: editForm.customer_name,
         customer_contact: editForm.customer_contact || null,
@@ -184,6 +197,22 @@ export default function Quotations() {
         <h2>New Quotation</h2>
         <form className="inline-form grid-form" onSubmit={handleCreate}>
           {error && <div className="error-banner">{error}</div>}
+          {isAdmin && (
+            <label>
+              Employee
+              <select
+                value={form.employee_id}
+                onChange={(e) => setForm({ ...form, employee_id: e.target.value })}
+              >
+                <option value="">Myself ({profile?.full_name})</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.full_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Quotation No.
             <input
@@ -320,7 +349,20 @@ export default function Quotations() {
                         onChange={(e) => setEditForm({ ...editForm, customer_contact: e.target.value })}
                       />
                     </td>
-                    {isAdmin && <td>{q.profiles?.full_name}</td>}
+                    {isAdmin && (
+                      <td>
+                        <select
+                          value={editForm.employee_id}
+                          onChange={(e) => setEditForm({ ...editForm, employee_id: e.target.value })}
+                        >
+                          {employees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.full_name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
                     <td>
                       <input
                         value={editForm.item_description}

@@ -152,6 +152,24 @@ alter table quotations add column if not exists converted_to_po boolean not null
 alter table purchase_orders add column if not exists quotation_id uuid references quotations(id) on delete set null;
 ```
 
+If your project predates employees having access to Cash Flow, also run:
+
+```sql
+drop policy if exists "cash_select_admin" on cash_transactions;
+drop policy if exists "cash_insert_admin" on cash_transactions;
+drop policy if exists "cash_update_admin" on cash_transactions;
+drop policy if exists "cash_delete_admin" on cash_transactions;
+
+create policy "cash_select_all" on cash_transactions for select
+  using (auth.uid() is not null);
+create policy "cash_insert_all" on cash_transactions for insert
+  with check (auth.uid() is not null);
+create policy "cash_update" on cash_transactions for update
+  using (created_by = auth.uid() or is_admin());
+create policy "cash_delete" on cash_transactions for delete
+  using (created_by = auth.uid() or is_admin());
+```
+
 ## Features
 
 - **Daily Reports** — each employee logs a daily summary + quotation count;

@@ -33,14 +33,7 @@ export default function App() {
             <Route path="/quotations" element={<Quotations />} />
             <Route path="/purchase-orders" element={<PurchaseOrders />} />
             <Route path="/suppliers" element={<Suppliers />} />
-            <Route
-              path="/cashflow"
-              element={
-                <ProtectedRoute adminOnly>
-                  <CashFlow />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/cashflow" element={<CashFlow />} />
             <Route
               path="/employees"
               element={

@@ -226,15 +226,15 @@ create policy "supplier_purchases_update" on supplier_purchases for update
 create policy "supplier_purchases_delete" on supplier_purchases for delete
   using (is_admin());
 
--- cash_transactions: admin only
-create policy "cash_select_admin" on cash_transactions for select
-  using (is_admin());
-create policy "cash_insert_admin" on cash_transactions for insert
-  with check (is_admin());
-create policy "cash_update_admin" on cash_transactions for update
-  using (is_admin());
-create policy "cash_delete_admin" on cash_transactions for delete
-  using (is_admin());
+-- cash_transactions: any logged-in user can view/add; edit/delete own entries or admin
+create policy "cash_select_all" on cash_transactions for select
+  using (auth.uid() is not null);
+create policy "cash_insert_all" on cash_transactions for insert
+  with check (auth.uid() is not null);
+create policy "cash_update" on cash_transactions for update
+  using (created_by = auth.uid() or is_admin());
+create policy "cash_delete" on cash_transactions for delete
+  using (created_by = auth.uid() or is_admin());
 
 -- ─── Auto-create profile on signup ─────────────────────────────
 -- search_path is pinned because this trigger fires from the auth schema's
