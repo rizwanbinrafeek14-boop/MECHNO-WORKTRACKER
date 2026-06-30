@@ -41,6 +41,25 @@ update profiles set role = 'admin' where id = (
 From then on, admins can promote/demote other staff from the **Employees** page
 in the app.
 
+## Admin-created employee accounts
+
+Admins can create staff accounts directly from the **Employees** page (full
+name, email, password — the employee signs in immediately with those
+credentials). This calls a Supabase Edge Function (`create-employee`) that
+holds the service-role key server-side; it is not exposed to the browser.
+
+Deploy it once via the [Supabase CLI](https://supabase.com/docs/guides/cli):
+
+```bash
+supabase login
+supabase link --project-ref your-project-ref
+supabase functions deploy create-employee
+```
+
+No extra secrets need to be set — `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` are automatically available to every Edge
+Function in your project.
+
 ## Updating an existing Supabase project
 
 If your project was created before the Performance/Suppliers-purchase-history
