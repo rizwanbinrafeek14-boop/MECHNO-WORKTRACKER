@@ -141,6 +141,13 @@ If your project predates the quotation number field, also run:
 alter table quotations add column if not exists quotation_number text;
 ```
 
+If your project predates converting quotations into purchase orders, also run:
+
+```sql
+alter table quotations add column if not exists converted_to_po boolean not null default false;
+alter table purchase_orders add column if not exists quotation_id uuid references quotations(id) on delete set null;
+```
+
 ## Features
 
 - **Daily Reports** — each employee logs a daily summary + quotation count;

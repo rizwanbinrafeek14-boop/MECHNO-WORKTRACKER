@@ -278,7 +278,10 @@ export default function PurchaseOrders() {
                   </tr>
                 ) : (
                   <tr key={po.id}>
-                    <td>{po.po_number || '—'}</td>
+                    <td>
+                      {po.po_number || '—'}
+                      {po.quotation_id && <div className="muted">From quotation</div>}
+                    </td>
                     <td>
                       {po.customer_name}
                       {po.notes && <div className="muted">{po.notes}</div>}

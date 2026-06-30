@@ -67,6 +67,7 @@ create table if not exists quotations (
   rejection_reason text,
   next_follow_up_date date,
   last_followed_up_at date,
+  converted_to_po boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -84,6 +85,7 @@ create table if not exists quotation_followups (
 create table if not exists purchase_orders (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid not null references profiles(id) on delete cascade,
+  quotation_id uuid references quotations(id) on delete set null,
   po_number text,
   customer_name text not null,
   item_description text not null,

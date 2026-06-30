@@ -92,6 +92,25 @@ export default function Quotations() {
     load()
   }
 
+  async function convertToPO(q) {
+    if (!window.confirm(`Create a Purchase Order from this quotation for ${q.customer_name}?`)) return
+    const { error } = await supabase.from('purchase_orders').insert({
+      employee_id: q.employee_id,
+      quotation_id: q.id,
+      po_number: q.quotation_number || null,
+      customer_name: q.customer_name,
+      item_description: q.item_description,
+      amount: q.amount,
+      date_received: new Date().toISOString().slice(0, 10),
+    })
+    if (error) {
+      setError(error.message)
+      return
+    }
+    await supabase.from('quotations').update({ converted_to_po: true }).eq('id', q.id)
+    load()
+  }
+
   async function loadFollowupHistory(quotationId) {
     const { data } = await supabase
       .from('quotation_followups')
@@ -364,6 +383,11 @@ export default function Quotations() {
                       <td>{formatDate(q.date_sent)}</td>
                       <td>
                         <span className={`badge badge-${q.status}`}>{q.status}</span>
+                        {q.converted_to_po && (
+                          <div className="muted" style={{ marginTop: 4 }}>
+                            → PO created
+                          </div>
+                        )}
                       </td>
                       <td>{q.status === 'pending' ? `${daysSince(q.date_sent)}d` : '—'}</td>
                       <td>{q.rejection_reason || '—'}</td>
@@ -386,6 +410,11 @@ export default function Quotations() {
                               Rejected
                             </button>
                           </>
+                        )}
+                        {q.status === 'accepted' && !q.converted_to_po && (
+                          <button className="btn-small btn-success" onClick={() => convertToPO(q)}>
+                            Convert to PO
+                          </button>
                         )}
                         <button className="btn-small" onClick={() => toggleHistory(q)}>
                           {expandedId === q.id ? 'Hide History' : 'History'}
